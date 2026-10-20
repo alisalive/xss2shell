@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.pyo
+xss2shell_creds.json
+.env
+*.log
+.DS_Store
+Thumbs.db
